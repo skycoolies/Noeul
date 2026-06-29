@@ -1,4 +1,4 @@
-// api/chat.js — Groq(무료) 프록시 (Vercel 서버리스 함수)
+// api/chat .js — Groq(무료) 프록시 (Vercel 서버리스 함수)
 // 브라우저(index.html)는 이 함수로만 요청을 보내고, 실제 API 키는 서버 환경변수에만 둡니다.
 // Vercel 프로젝트 설정 > Environment Variables 에 GROQ_API_KEY 를 추가하세요.
 // 키 발급: https://console.groq.com  (신용카드 없이 무료, 분당 30회로 한도 넉넉)

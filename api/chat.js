@@ -3,7 +3,8 @@
 // Vercel 프로젝트 설정 > Environment Variables 에 GEMINI_API_KEY 를 추가하세요.
 // 키 발급: https://aistudio.google.com  (신용카드 없이 무료)
 
-const MODEL = 'gemini-2.5-flash'; // 한국어·형식 안정적, 토큰 한도 넉넉. 분당 빡빡하면 'gemini-2.5-flash-lite'.
+//const MODEL = 'gemini-2.5-flash'; // 한국어·형식 안정적, 토큰 한도 넉넉. 분당 빡빡하면 'gemini-2.5-flash-lite'.
+const MODEL = 'gemini-2.5-flash-lite';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

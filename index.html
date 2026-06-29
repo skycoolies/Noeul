@@ -247,9 +247,9 @@
       <button class="reset-btn" id="reset" aria-label="처음부터 다시 시작" title="처음부터 다시 시작"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
       <button class="theme-toggle" id="theme" aria-label="낮/밤 모드 전환"></button>
     </div>
-    <p class="eyebrow">퇴근 후 개인 비서</p>
+    <p class="eyebrow">하루의 마무리를 함께</p>
     <div class="title-row"><h1>노을 <span class="en">Noeul</span></h1></div>
-    <p class="subtitle">퇴근하고 잠들기 전, 남은 시간을 같이 설계해요.<br>오늘 컨디션에 맞춰 저녁·할 일·약속·쉼까지 — 무리 없이.</p>
+    <p class="subtitle">저녁식사·할 일·약속·휴식까지<br>퇴근하고 잠들기 전, 남은 시간을 같이 설계해요.</p>
     <label class="bedtime-pill"><span class="moon">🌙</span> 취침 시간
       <select id="bedtime" class="bedtime-select" aria-label="취침 시간 설정">
         <option value="22:00">오후 10:00</option>
@@ -537,23 +537,32 @@ function showTyping(){
 function hideTyping(){ const t = document.getElementById('typing'); if(t) t.remove(); }
 
 async function callClaude(){
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      system: SYSTEM_PROMPT.replace(/\{\{BEDTIME\}\}/g, bedtime).replace(/\{\{HOME\}\}/g, homeLocation).replace(/\{\{DDAYS\}\}/g, ddayPromptStr()),
-      messages: apiMessages.slice(-12)
-    })
+  const payload = JSON.stringify({
+    system: SYSTEM_PROMPT.replace(/\{\{BEDTIME\}\}/g, bedtime).replace(/\{\{HOME\}\}/g, homeLocation).replace(/\{\{DDAYS\}\}/g, ddayPromptStr()),
+    messages: apiMessages.slice(-12)
   });
-  if(!res.ok){
-    let detail = 'HTTP ' + res.status;
-    try { const e = await res.json(); if(e && e.error) detail += ' · ' + (typeof e.error === 'string' ? e.error : JSON.stringify(e.error)); } catch(_){}
-    throw new Error(detail);
+  for(let attempt = 0; attempt < 2; attempt++){
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload
+    });
+    // 분당 한도(429)·과부하(503)면 잠깐 기다렸다 한 번 자동 재시도
+    if((res.status === 429 || res.status === 503) && attempt === 0){
+      await new Promise(r => setTimeout(r, 16000));
+      continue;
+    }
+    if(!res.ok){
+      let detail = 'HTTP ' + res.status;
+      try { const e = await res.json(); if(e && e.error) detail += ' · ' + (typeof e.error === 'string' ? e.error : JSON.stringify(e.error)); } catch(_){}
+      throw new Error(detail);
+    }
+    const data = await res.json();
+    const out = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('').trim();
+    if(!out) throw new Error('빈 응답 (모델명·토큰 설정 확인)');
+    return out;
   }
-  const data = await res.json();
-  const out = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('').trim();
-  if(!out) throw new Error('빈 응답 (모델명·토큰·thinking 설정 확인)');
-  return out;
+  throw new Error('HTTP 429 · 잠시 후 다시 시도해 주세요');
 }
 
 async function handleSend(textArg){
@@ -577,8 +586,8 @@ async function handleSend(textArg){
   }catch(err){
     hideTyping();
     const msg = String(err && err.message || err);
-    if(/\b429\b|quota|rate limit/i.test(msg)){
-      addMessage('bot', '<p>지금 무료 사용량 한도(분당 요청 수)에 잠깐 걸렸어요. 약 30초 뒤에 같은 내용을 한 번만 다시 보내 주시면 이어서 도와드릴게요. 🙏</p>');
+    if(/\b429\b|\b503\b|quota|rate limit|overload|high demand/i.test(msg)){
+      addMessage('bot', '<p>지금 무료 사용량 한도이거나 서버가 잠깐 붐비는 것 같아요. 약 30초~1분 뒤에 같은 내용을 한 번만 다시 보내 주시면 이어서 도와드릴게요. 🙏</p>');
     } else {
       addMessage('bot', '<p>⚠️ 오류: ' + escapeHtml(msg) + '</p>');
     }
